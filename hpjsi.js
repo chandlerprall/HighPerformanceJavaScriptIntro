@@ -19,9 +19,9 @@
 		renderer.setSize( window.innerWidth, window.innerHeight );
 		document.body.appendChild( renderer.domElement );
 
-		camera = new THREE.PerspectiveCamera( camera_fov, 800 / 640, 1, 100 );
-		camera.position.set( 0, 15, 50 );
-		camera.lookAt( scene.position );
+		camera = new THREE.PerspectiveCamera( camera_fov, 800 / 640, 1, 300 );
+		camera.position.set( 0, 10, 30 );
+		camera.lookAt( new THREE.Vector3( 0, 5, 0 ) );
 
 		window.addEventListener( 'resize', onWindowResize );
 	}
@@ -30,8 +30,8 @@
 		var ambient = new THREE.AmbientLight( 0x111111 );
 		scene.add( ambient );
 
-		var spotlight = new THREE.SpotLight( 0xFFFFFF, 2, 50, Math.PI / 1.2, 10, 2 );
-		spotlight.position.set( 10, 5, 15 );
+		var spotlight = new THREE.SpotLight( 0xFFFFFF, 2, 150, Math.PI / 1.2, 10, 2 );
+		spotlight.position.set( 15, 8, 25 );
 		spotlight.castShadow = true;
 		spotlight.shadowCameraNear = 1;
 		spotlight.shadowCameraFar = 50;
@@ -42,8 +42,8 @@
 		spotlight.shadowMapHeight = 1024;
 		scene.add( spotlight );
 
-		var spotlight = new THREE.SpotLight( 0xFFFFFF, 2, 50, Math.PI / 1.2, 10, 2 );
-		spotlight.position.set( -10, 5, 15 );
+		var spotlight = new THREE.SpotLight( 0xFFFFFF, 2, 150, Math.PI / 1.2, 10, 2 );
+		spotlight.position.set( -15, 8, 25 );
 		spotlight.castShadow = true;
 		spotlight.shadowCameraNear = 1;
 		spotlight.shadowCameraFar = 50;
@@ -57,7 +57,7 @@
 
 	function initFloor() {
 		var floor = new THREE.Mesh(
-			new THREE.PlaneGeometry( 50, 50, 0, 0 ),
+			new THREE.PlaneGeometry( 150, 150 ),
 			new THREE.MeshPhongMaterial({
 				map: THREE.ImageUtils.loadTexture('textures/floor_diffuse.jpg'),
 				normalMap: THREE.ImageUtils.loadTexture('textures/floor_normal.png'),
@@ -76,7 +76,8 @@
 		floor.material.specularMap.repeat.set( 10, 10 );
 
 		var rigid_body = new Goblin.RigidBody(
-			new Goblin.BoxShape(25, 0.001, 25),
+			//new Goblin.BoxShape(25, 0.1, 25),
+			goblinShapeFromGeometry(floor.geometry),
 			Infinity
 		);
 
@@ -106,12 +107,8 @@
 				bevelEnabled: false
 			}
 		);
-		//text_geometry = new THREE.BoxGeometry( 1, 1, 1, 10, 10, 10 );
 		text_geometry.center();
-		//text_geometry.computeBoundingBox();
 		text_geometry.computeVertexNormals();
-
-		window.letter = text_geometry;
 
 		return letter_geometry[letter] = text_geometry;
 	}
@@ -120,7 +117,6 @@
 		new THREE.MeshPhongMaterial( { color: 0xff5533, shading: THREE.FlatShading } ), // front
 		new THREE.MeshPhongMaterial( { color: 0xff5533, shading: THREE.SmoothShading } ) // side
 	]);
-	//text_material = new THREE.MeshLambertMaterial({ color: 0x4444FF });
 	function initWord(word, spacing, position) {
 		var letters = [];
 
@@ -135,11 +131,11 @@
 			letter_mesh.position.x = letter_offset;
 
 			// Add bounding frame
-			var bounding_frame = new THREE.Mesh(
+			/*var bounding_frame = new THREE.Mesh(
 				new THREE.BoxGeometry( letter_geometry.boundingBox.max.x - letter_geometry.boundingBox.min.x, letter_geometry.boundingBox.max.y - letter_geometry.boundingBox.min.y, letter_geometry.boundingBox.max.z - letter_geometry.boundingBox.min.z ),
 				new THREE.MeshBasicMaterial({ color: 0x888888, wireframe: true })
 			);
-			letter_mesh.add(bounding_frame);
+			letter_mesh.add(bounding_frame);*/
 
 			scene.add( letter_mesh );
 			letters.push(letter_mesh);
@@ -152,24 +148,26 @@
 			letters[i].position.z = position.z;
 		}
 
+		letters.forEach(function(letter) {
+			var physics_shape = goblinShapeFromGeometry(letter.geometry ),
+				rigid_body = new Goblin.RigidBody(physics_shape, 1);
+
+			rigid_body.mesh = letter;
+			rigid_body.position.x = letter.position.x;
+			rigid_body.position.y = letter.position.y;
+			rigid_body.position.z = letter.position.z;
+
+			world.addRigidBody( rigid_body );
+			physics_objects.push( rigid_body );
+		});
+
 		return letters;
 	}
 
 	function initWords() {
-		var letters = initWord( 'JavaScript', 1, new THREE.Vector3(0, 2, 0) ),
-			letter_shapes = letters.map(function(letter) {
-				var physics_shape = goblinShapeFromGeometry(letter.geometry ),
-					rigid_body = new Goblin.RigidBody(physics_shape, 1);
-					//rigid_body = new Goblin.RigidBody(physics_shape, Infinity);
-
-				rigid_body.mesh = letter;
-				rigid_body.position.x = letter.position.x;
-				rigid_body.position.y = letter.position.y;
-				rigid_body.position.z = letter.position.z;
-
-				world.addRigidBody( rigid_body );
-				physics_objects.push( rigid_body );
-			});
+		initWord( 'High', 1, new THREE.Vector3(-8, 13, -0.4) );
+		initWord( 'Performance', 1, new THREE.Vector3(7, 7, 0.4) );
+		initWord( 'JavaScript', 1, new THREE.Vector3(0, 2.5, 0) );
 	}
 
 	function goblinShapeFromGeometry(geometry) {
@@ -212,12 +210,12 @@
 			body.mesh.rotation.w = body.rotation.w;
 		});
 
-		displayContacts();
+		//displayContacts();
 
 		renderer.render( scene, camera );
 	}
 
-	var displayContacts = (function(){
+	/*var displayContacts = (function(){
 		var contacts = [],
 			sphere = new THREE.SphereGeometry( 0.4 ),
 			material = new THREE.MeshNormalMaterial(),
@@ -246,7 +244,7 @@
 				manifold = manifold.next_manifold;
 			}
 		};
-	})();
+	})();*/
 
 	initGoblin();
 	initThree();

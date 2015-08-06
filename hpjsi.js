@@ -7,6 +7,7 @@
 
 	function initGoblin() {
 		world = new Goblin.World( new Goblin.SAPBroadphase(), new Goblin.NarrowPhase(), new Goblin.IterativeSolver() );
+		world.gravity.set( 0, 0, 0 );
 	}
 
 	function initThree() {
@@ -130,13 +131,6 @@
 				spacing;
 			letter_mesh.position.x = letter_offset;
 
-			// Add bounding frame
-			/*var bounding_frame = new THREE.Mesh(
-				new THREE.BoxGeometry( letter_geometry.boundingBox.max.x - letter_geometry.boundingBox.min.x, letter_geometry.boundingBox.max.y - letter_geometry.boundingBox.min.y, letter_geometry.boundingBox.max.z - letter_geometry.boundingBox.min.z ),
-				new THREE.MeshBasicMaterial({ color: 0x888888, wireframe: true })
-			);
-			letter_mesh.add(bounding_frame);*/
-
 			scene.add( letter_mesh );
 			letters.push(letter_mesh);
 		}
@@ -149,8 +143,8 @@
 		}
 
 		letters.forEach(function(letter) {
-			var physics_shape = goblinShapeFromGeometry(letter.geometry ),
-				rigid_body = new Goblin.RigidBody(physics_shape, 1);
+			var physics_shape = goblinShapeFromGeometry( letter.geometry ),
+				rigid_body = new Goblin.RigidBody( physics_shape, 1 );
 
 			rigid_body.mesh = letter;
 			rigid_body.position.x = letter.position.x;
@@ -165,15 +159,12 @@
 	}
 
 	function initWords() {
-		initWord( 'High', 1, new THREE.Vector3(-8, 13, -0.4) );
-		initWord( 'Performance', 1, new THREE.Vector3(7, 7, 0.4) );
-		initWord( 'JavaScript', 1, new THREE.Vector3(0, 2.5, 0) );
+		initWord( 'High', 0.7, new THREE.Vector3( -8, 13, -0.0 ) );
+		initWord( 'Performance', 0.7, new THREE.Vector3( 1, 7, 0.0 ) );
+		initWord( 'JavaScript', 0.7, new THREE.Vector3( 0, 2.5, 0 ) );
 	}
 
-	function goblinShapeFromGeometry(geometry) {
-		/*return new Goblin.ConvexShape(geometry.vertices.map(function(vertex){
-			return new Goblin.Vector3( vertex.x, vertex.y, vertex.z );
-		}));*/
+	function goblinShapeFromGeometry( geometry ) {
 		return new Goblin.MeshShape(
 			geometry.vertices.map(function( vertex ){
 				return new Goblin.Vector3( vertex.x, vertex.y, vertex.z )
@@ -186,6 +177,21 @@
 				[]
 			)
 		);
+	}
+
+	function threeGeometryFromConvexShape( shape ) {
+		var geometry = new THREE.Geometry();
+
+		for ( var i = 0; i < shape.faces.length; i++ ) {
+			var face = shape.faces[i];
+			geometry.vertices.push( new THREE.Vector3( face.a.point.x, face.a.point.y, face.a.point.z ) );
+			geometry.vertices.push( new THREE.Vector3( face.b.point.x, face.b.point.y, face.b.point.z ) );
+			geometry.vertices.push( new THREE.Vector3( face.c.point.x, face.c.point.y, face.c.point.z ) );
+
+			geometry.faces.push( new THREE.Face3( i * 3, i * 3 + 1, i * 3 + 2 ) );
+		}
+
+		return geometry;
 	}
 
 	function onWindowResize() {
@@ -210,47 +216,23 @@
 			body.mesh.rotation.w = body.rotation.w;
 		});
 
-		//displayContacts();
-
 		renderer.render( scene, camera );
 	}
-
-	/*var displayContacts = (function(){
-		var contacts = [],
-			sphere = new THREE.SphereGeometry( 0.4 ),
-			material = new THREE.MeshNormalMaterial(),
-			normal_material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
-
-		return function() {
-			while ( contacts.length ) {
-				scene.remove( contacts.pop() );
-			}
-
-			var manifold = world.narrowphase.contact_manifolds.first;
-			while ( manifold ) {
-				for ( var i = 0; i < manifold.points.length; i++ ) {
-					var mesh = new THREE.Mesh( sphere, material );
-					mesh.position.copy( manifold.points[i].contact_point );
-					scene.add( mesh );
-					contacts.push( mesh );
-
-					var normal_geometry = new THREE.Geometry();
-					normal_geometry.vertices.push( mesh.position.clone() );
-					normal_geometry.vertices.push( new THREE.Vector3().copy( manifold.points[i].contact_normal ).multiplyScalar( 2 ).add( mesh.position ) );
-					var normal = new THREE.Line( normal_geometry, normal_material );
-					scene.add( normal );
-					contacts.push( normal );
-				}
-				manifold = manifold.next_manifold;
-			}
-		};
-	})();*/
 
 	initGoblin();
 	initThree();
 	initLights();
 	initFloor();
 	initWords();
+
+	window.addEventListener(
+		'keydown',
+		function( e ) {
+			if ( e.keyCode === 32 ) { // space key
+				world.gravity.y = -9.8;
+			}
+		}
+	);
 
 	onWindowResize();
 	render();
